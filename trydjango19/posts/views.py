@@ -1,5 +1,6 @@
-from django.http import HttpResponse
-from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect
+from django.contrib import messages
+from django.shortcuts import render, get_object_or_404, redirect
 
 from .models import Post
 from .forms import  PostForm
@@ -8,15 +9,22 @@ from .forms import  PostForm
 
 
 def post_create(request):
-    form = PostForm()
+    form = PostForm(request.POST or None)
+
+    if form.is_valid():
+        instance = form.save(commit=False)
+        instance.save()
+        messages.success(request, "Successfully Created")
+        return HttpResponseRedirect(instance.get_absolute_url())
+
     context = {
         "form": form,
     }
     return render(request, "post_form.html", context)
 
 
-def post_detail(request, pk):
-    instance = get_object_or_404(Post, id=pk)
+def post_detail(request, id):
+    instance = get_object_or_404(Post, id=id)
     context = {
         "title": instance.title,
         "instance": instance,
@@ -30,18 +38,29 @@ def post_list(request):
         "object_list": queryset,
         "title": "List"
     }
-    return render(request, "index.html", context)
+    return render(request, "post_list.html", context)
 
 
-def post_update(request):
+def post_update(request, id=None):
+    instance = get_object_or_404(Post, id=id)
+
+    form = PostForm(request.POST or None, instance=instance)
+    if form.is_valid():
+        instance = form.save(commit=False)
+        instance.save()
+        messages.success(request, "Item Saved")
+        return HttpResponseRedirect(instance.get_absolute_url())
+
     context = {
-        "title": "Update"
+        "title": instance.title,
+        "instance": instance,
+        "form": form,
     }
-    return render(request, "index.html", context)
+    return render(request, "post_form.html", context)
 
 
-def post_delete(request):
-    context = {
-        "title": "Delete"
-    }
-    return render(request, "index.html", context)
+def post_delete(request, id=None):
+    instance = get_object_or_404(Post, id=id)
+    instance.delete()
+    messages.success(request, "Successfully Deleted")
+    return redirect("posts:list")
